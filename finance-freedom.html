@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>财务自由计算器</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: Arial, sans-serif; }
+        body { padding: 20px; background-color: #f5f5f5; }
+        .container { max-width: 1400px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .selector { margin-bottom: 20px; font-size: 16px; }
+        .selector label { margin-right: 10px; font-weight: bold; }
+        input[type="range"] { width: 200px; margin: 0 10px; }
+        input[type="number"] { width: 60px; padding: 8px; text-align: center; border: 1px solid #ccc; border-radius: 4px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: center; font-size: 14px; }
+        th { background-color: #4169E1; color: white; }
+        .red { background-color: #CD5C5C; color: white; }
+        .yellow { background-color: #FFE4B5; color: #333; }
+        .green { background-color: #90EE90; color: #333; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="selector">
+            <label for="rateRange">年化复利收益率：</label>
+            <input type="range" id="rateRange" min="1" max="25" value="5" oninput="syncRateInput()">
+            <input type="number" id="rateInput" min="1" max="25" value="5" oninput="syncRateRange()">
+            <span>%</span>
+        </div>
+        <table id="resultTable">
+            <thead>
+                <tr>
+                    <th>当你有</th>
+                    <th>100万</th>
+                    <th>200万</th>
+                    <th>300万</th>
+                    <th>500万</th>
+                    <th>1000万</th>
+                    <th>2000万</th>
+                    <th>3000万</th>
+                    <th>5000万</th>
+                    <th>1亿</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td>消费5万/年</td><td id="5w_100w"></td><td id="5w_200w"></td><td id="5w_300w"></td><td id="5w_500w"></td><td id="5w_1000w"></td><td id="5w_2000w"></td><td id="5w_3000w"></td><td id="5w_5000w"></td><td id="5w_10000w"></td></tr>
+                <tr><td>消费10万/年</td><td id="10w_100w"></td><td id="10w_200w"></td><td id="10w_300w"></td><td id="10w_500w"></td><td id="10w_1000w"></td><td id="10w_2000w"></td><td id="10w_3000w"></td><td id="10w_5000w"></td><td id="10w_10000w"></td></tr>
+                <tr><td>消费15万/年</td><td id="15w_100w"></td><td id="15w_200w"></td><td id="15w_300w"></td><td id="15w_500w"></td><td id="15w_1000w"></td><td id="15w_2000w"></td><td id="15w_3000w"></td><td id="15w_5000w"></td><td id="15w_10000w"></td></tr>
+                <tr><td>消费20万/年</td><td id="20w_100w"></td><td id="20w_200w"></td><td id="20w_300w"></td><td id="20w_500w"></td><td id="20w_1000w"></td><td id="20w_2000w"></td><td id="20w_3000w"></td><td id="20w_5000w"></td><td id="20w_10000w"></td></tr>
+                <tr><td>消费30万/年</td><td id="30w_100w"></td><td id="30w_200w"></td><td id="30w_300w"></td><td id="30w_500w"></td><td id="30w_1000w"></td><td id="30w_2000w"></td><td id="30w_3000w"></td><td id="30w_5000w"></td><td id="30w_10000w"></td></tr>
+                <tr><td>消费40万/年</td><td id="40w_100w"></td><td id="40w_200w"></td><td id="40w_300w"></td><td id="40w_500w"></td><td id="40w_1000w"></td><td id="40w_2000w"></td><td id="40w_3000w"></td><td id="40w_5000w"></td><td id="40w_10000w"></td></tr>
+                <tr><td>消费50万/年</td><td id="50w_100w"></td><td id="50w_200w"></td><td id="50w_300w"></td><td id="50w_500w"></td><td id="50w_1000w"></td><td id="50w_2000w"></td><td id="50w_3000w"></td><td id="50w_5000w"></td><td id="50w_10000w"></td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        const principals = [100, 200, 300, 500, 1000, 2000, 3000, 5000, 10000];
+        const consumptions = [5, 10, 15, 20, 30, 40, 50];
+        const INFINITE_THRESHOLD = 100;
+
+        window.onload = calculateTable;
+
+        function syncRateInput() {
+            const rangeVal = document.getElementById("rateRange").value;
+            document.getElementById("rateInput").value = rangeVal;
+            calculateTable();
+        }
+
+        function syncRateRange() {
+            let inputVal = document.getElementById("rateInput").value;
+            inputVal = Math.max(1, Math.min(50, inputVal));
+            document.getElementById("rateInput").value = inputVal;
+            document.getElementById("rateRange").value = inputVal;
+            calculateTable();
+        }
+
+        function calculateYears(principal, consumption, rate) {
+            if (consumption === 0) return "花不完";
+            let currentPrincipal = principal;
+            let years = 0;
+            const rateDecimal = rate / 100;
+
+            while (currentPrincipal > 0 && years < INFINITE_THRESHOLD) {
+                const profit = currentPrincipal * rateDecimal;
+                currentPrincipal = currentPrincipal + profit - consumption;
+                years++;
+                if (profit >= consumption) return "花不完";
+            }
+
+            return years >= INFINITE_THRESHOLD ? "花不完" : Math.floor(years);
+        }
+
+        function calculateTable() {
+            const selectedRate = parseFloat(document.getElementById("rateRange").value);
+            
+            consumptions.forEach(consumption => {
+                principals.forEach(principal => {
+                    const cell = document.getElementById(`${consumption}w_${principal}w`);
+                    const result = calculateYears(principal, consumption, selectedRate);
+                    
+                    cell.textContent = result === "花不完" ? "花不完" : `${result}年`;
+                    cell.className = "";
+                    if (result === "花不完") cell.classList.add("green");
+                    else if (result <= 10) cell.classList.add("red");
+                    else cell.classList.add("yellow");
+                });
+            });
+        }
+    </script>
+</body>
+</html>
