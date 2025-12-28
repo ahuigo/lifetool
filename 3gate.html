@@ -2,6 +2,7 @@
 <html lang="zh">
 <head>
 <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>经典三门问题游戏</title>
 <style>
     body {
@@ -10,12 +11,30 @@
         text-align: center;
         margin: 0;
         padding: 20px;
+        min-height: 100vh;
     }
     h1 {
         color: #333;
     }
     .controls {
         margin-bottom: 20px;
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+    .controls label { font-size: 14px; color: #333; }
+    .controls select {
+        padding: 8px 10px;
+        font-size: 16px;
+        border-radius: 4px;
+        border: 1px solid #ccc;
+        background: #fff;
+    }
+    .controls button {
+        padding: 12px 18px;
+        font-size: 16px;
     }
     button {
         margin: 5px;
@@ -28,12 +47,14 @@
         justify-content: center;
         gap: 20px;
         margin-top: 30px;
+        flex-wrap: wrap;
     }
     .door {
         width: 100px;
         height: 150px;
         background-color: #4CAF50;
         border: 2px solid #333;
+        box-sizing: border-box;
         cursor: pointer;
         display: flex;
         align-items: center;
@@ -41,6 +62,40 @@
         font-size: 20px;
         color: white;
         transition: all 0.3s;
+    }
+
+    /* layout tweaks for 6 doors */
+    .doors.count-6 .door {
+        width: 13.5vw;
+        height: 18vw;
+    }
+
+    /* Responsive door sizing for mobile */
+    @media (max-width: 600px) {
+        .doors {
+            gap: 12px;
+        }
+        .door {
+            width: 28vw;
+            height: 40vw;
+            font-size: 18px;
+        }
+        body { padding: 12px; }
+    }
+
+    /* on-screen Y/N buttons for mobile */
+    .switch-buttons {
+        display: none;
+        justify-content: center;
+        gap: 12px;
+        margin-top: 18px;
+    }
+    .switch-buttons.active { display: flex; }
+    .switch-buttons button {
+        padding: 12px 18px;
+        font-size: 16px;
+        border-radius: 6px;
+        cursor: pointer;
     }
     .door:hover {
         background-color: #45a049;
@@ -53,9 +108,11 @@
         background-color: #ffeb3b;
         color: #333;
     }
+    /* keep door width stable when selected by using box-shadow instead of widening border */
     .door.selected {
         border-color: red;
-        border-width: 4px;
+        border-width: 2px; /* preserve original layout */
+        box-shadow: 0 0 0 4px rgba(255,0,0,0.18);
     }
     .stats {
         margin-top: 30px;
@@ -75,13 +132,17 @@
         width: 100%;
         height: 100%;
         background-color: rgba(0,0,0,0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        box-sizing: border-box;
     }
     .modal-content {
         background-color: #fff;
-        margin: 15% auto;
         padding: 20px;
-        width: 70%;
-        max-width: 500px;
+        width: 90%;
+        max-width: 520px;
         border-radius: 5px;
         text-align: left;
     }
@@ -94,47 +155,79 @@
 </head>
 <body>
 
-<h1>经典三门问题游戏</h1>
+<h1>三门问题游戏</h1>
 
 <div class="controls">
-    <button id="modeBtn">切换到上帝模式</button>
+    <label for="modeSelect">模式：</label>
+    <select id="modeSelect" aria-label="选择游戏模式">
+        <option value="game">游戏模式</option>
+        <option value="god">上帝模式</option>
+    </select>
+
+    <label for="doorCountSelect">门数：</label>
+    <select id="doorCountSelect" aria-label="选择门数">
+        <option value="3">3 门</option>
+        <option value="6">6 门</option>
+    </select>
+
     <button id="rulesBtn">游戏规则</button>
     <button id="resetBtn">重新开始</button>
 </div>
 
 <div class="stats">
-    <p>当前模式：<span id="currentMode">游戏模式</span></p>
-    <p>中奖轮数 / 当前轮数：<span id="winCount">0</span>/<span id="roundCount">0</span></p>
+    <!-- 模式显示已改为下拉，不再单独显示“当前模式” -->
     <p>换门中奖轮数 / 换门次数：<span id="switchWinCount">0</span>/<span id="switchCount">0</span></p>
     <p>不换门中奖轮数 / 不换门次数：<span id="stayWinCount">0</span>/<span id="stayCount">0</span></p>
 </div>
 
-<div class="message" id="message">请选择一扇门（按 1/2/3 或点击）</div>
+<div class="message" id="message">请选择一扇门（按 数字 或 点击）</div>
 
-<div class="doors">
-    <div class="door" data-door="1">1</div>
-    <div class="door" data-door="2">2</div>
-    <div class="door" data-door="3">3</div>
+<div class="doors" id="doorsContainer" data-count="3">
+    <!-- doors will be rendered dynamically based on selected door count -->
+</div>
+
+<!-- On-screen buttons for switching (mobile friendly) -->
+<div class="switch-buttons" id="switchButtons">
+    <button id="switchYes">换门（Y）</button>
+    <button id="switchNo">不换门（N）</button>
 </div>
 
 <div class="modal" id="rulesModal">
     <div class="modal-content">
         <span class="close">&times;</span>
-        <h2>游戏规则</h2>
-        <p>1. 有三扇门，其中一扇门后有奖品，另外两扇门后是山羊。</p>
-        <p>2. 玩家选择一扇门后，主持人会打开另一扇没有奖品的门。</p>
+        <h2>3门游戏规则(6门则类似)</h2>
+        <p>1. 有三扇门（或选择 6 门），其中一扇门后有奖品，其余门后为山羊。</p>
+        <p>2. 玩家选择一扇门后，另外两扇门中由主持人打开一扇没有奖品的门，最后只留下两扇闭合的门供玩家决定是否更换选择。</p>
         <p>3. 玩家可以选择是否更换选择的门。</p>
         <p>4. 最后显示玩家是否赢得奖品。</p>
         <p>5. 游戏支持无限轮，实时统计结果。</p>
         <p>6. 游戏模式：第一次选择门后不显示门后内容。</p>
-        <p>7. 上帝模式：第一次选择门后可以看到门后内容（用于验证程序公平性）。</p>
+        <p>7. 上帝模式：第一次选择门后可以看到门后内容（程序真没作弊）。</p>
+        <p>注：可在页面顶部选择玩法为 <strong>3 门</strong> 或 <strong>6 门</strong>（默认 3 门）。</p>
     </div>
 </div>
 
 <script>
+    class LCG {
+        constructor(seed) {
+            this.state = seed || Date.now();
+        }
+
+        next() {
+            this.state = (this.state * 1664525 + 1013904223) % 0x100000000;
+            return this.state / 0x100000000;
+        }
+    }
+    const rng = new LCG(12345);
+    function seedRandom(){
+        return rng.next();
+    }
+
     let isGodMode = false;
     let prizeDoor;
     let firstChoice;
+    let otherClosed; // the other door left closed for switching
+    let doorCount = 3;
     let roundCount = 0;
     let winCount = 0;
     let switchCount = 0;
@@ -143,13 +236,12 @@
     let stayWinCount = 0;
     let step = 'chooseDoor'; // chooseDoor / chooseSwitch
 
-    const doors = document.querySelectorAll('.door');
-    const modeBtn = document.getElementById('modeBtn');
+    const doorsContainer = document.getElementById('doorsContainer');
+    const modeSelect = document.getElementById('modeSelect');
+    const doorCountSelect = document.getElementById('doorCountSelect');
     const rulesBtn = document.getElementById('rulesBtn');
     const resetBtn = document.getElementById('resetBtn');
-    const currentModeEl = document.getElementById('currentMode');
-    const winCountEl = document.getElementById('winCount');
-    const roundCountEl = document.getElementById('roundCount');
+    // winCount/roundCount display removed per request
     const switchWinCountEl = document.getElementById('switchWinCount');
     const switchCountEl = document.getElementById('switchCount');
     const stayWinCountEl = document.getElementById('stayWinCount');
@@ -157,16 +249,36 @@
     const messageEl = document.getElementById('message');
     const rulesModal = document.getElementById('rulesModal');
     const closeModal = document.querySelector('.close');
+    const switchButtons = document.getElementById('switchButtons');
+    const switchYes = document.getElementById('switchYes');
+    const switchNo = document.getElementById('switchNo');
+
+    // render doors based on current doorCount
+    function renderDoors() {
+        doorsContainer.innerHTML = '';
+        doorsContainer.setAttribute('data-count', doorCount);
+        doorsContainer.classList.toggle('count-6', doorCount === 6);
+        for (let i = 1; i <= doorCount; i++) {
+            const d = document.createElement('div');
+            d.className = 'door';
+            d.dataset.door = i;
+            d.textContent = i;
+            d.addEventListener('click', () => { if (step === 'chooseDoor') chooseDoor(i); });
+            doorsContainer.appendChild(d);
+        }
+    }
 
     // 初始化游戏
     function initGame() {
-        prizeDoor = Math.floor(Math.random() * 3) + 1;
-        doors.forEach(door => {
+        prizeDoor = Math.floor(seedRandom() * doorCount) + 1;
+        document.querySelectorAll('.door').forEach(door => {
             door.classList.remove('open', 'prize', 'selected');
             door.textContent = door.dataset.door;
         });
         step = 'chooseDoor';
-        messageEl.textContent = '请选择一扇门（按 1/2/3 或点击）';
+        messageEl.textContent = `请选择一扇门（按 1..${doorCount} 或点击）`;
+        // hide on-screen switch buttons
+        if (switchButtons) switchButtons.classList.remove('active');
     }
 
     // 第一次选门
@@ -175,8 +287,9 @@
         const doorEl = document.querySelector(`.door[data-door="${doorNum}"]`);
         doorEl.classList.add('selected');
 
+        // if god mode, reveal all contents behind doors
         if (isGodMode) {
-            doors.forEach(door => {
+            document.querySelectorAll('.door').forEach(door => {
                 const num = parseInt(door.dataset.door);
                 if (num === prizeDoor) {
                     door.classList.add('prize');
@@ -187,27 +300,40 @@
             });
         }
 
-        // 打开一扇没有奖品的门
-        let openDoor;
-        do {
-            openDoor = Math.floor(Math.random() * 3) + 1;
-        } while (openDoor === prizeDoor || openDoor === firstChoice);
+        // determine the other closed door that will remain (for switching)
+        if (prizeDoor === firstChoice) {
+            // randomly pick one other door to keep closed
+            const candidates = [];
+            for (let i = 1; i <= doorCount; i++) if (i !== firstChoice) candidates.push(i);
+            otherClosed = candidates[Math.floor(seedRandom() * candidates.length)];
+        } else {
+            // leave the prize door closed so switching can win
+            otherClosed = prizeDoor;
+        }
 
-        const openDoorEl = document.querySelector(`.door[data-door="${openDoor}"]`);
-        openDoorEl.classList.add('open');
-        openDoorEl.textContent = '🐐';
+        // open all doors except firstChoice and otherClosed
+        for (let i = 1; i <= doorCount; i++) {
+            if (i === firstChoice || i === otherClosed) continue;
+            const el = document.querySelector(`.door[data-door="${i}"]`);
+            el.classList.add('open');
+            el.textContent = '🐐';
+        }
 
         step = 'chooseSwitch';
-        messageEl.textContent = '是否换门？（按 Y/N）';
+        messageEl.textContent = '是否换门？（点击按钮或按 Y/N）';
+        // show on-screen switch buttons for touch devices
+        if (switchButtons) switchButtons.classList.add('active');
     }
 
     // 选择是否换门
     function chooseSwitch(isSwitch) {
+        // hide on-screen buttons right away
+        if (switchButtons) switchButtons.classList.remove('active');
         roundCount++;
         let finalChoice = firstChoice;
         if (isSwitch) {
             switchCount++;
-            finalChoice = [1,2,3].find(d => d !== firstChoice && ![...document.querySelectorAll('.door.open')].some(el => parseInt(el.dataset.door) === d));
+            finalChoice = otherClosed;
         } else {
             stayCount++;
         }
@@ -233,28 +359,19 @@
 
     // 更新统计信息
     function updateStats() {
-        currentModeEl.textContent = isGodMode ? '上帝模式' : '游戏模式';
-        winCountEl.textContent = winCount;
-        roundCountEl.textContent = roundCount;
+        // winCount and roundCount are no longer shown
         switchWinCountEl.textContent = switchWinCount;
         switchCountEl.textContent = switchCount;
         stayWinCountEl.textContent = stayWinCount;
         stayCountEl.textContent = stayCount;
     }
 
-    // 事件监听
-    doors.forEach(door => {
-        door.addEventListener('click', () => {
-            if (step === 'chooseDoor') {
-                chooseDoor(parseInt(door.dataset.door));
-            }
-        });
-    });
-
+    // 事件监听 (键盘)
     document.addEventListener('keydown', e => {
         if (step === 'chooseDoor') {
-            if (['1','2','3'].includes(e.key)) {
-                chooseDoor(parseInt(e.key));
+            const n = parseInt(e.key);
+            if (!isNaN(n) && n >= 1 && n <= doorCount) {
+                chooseDoor(n);
             }
         } else if (step === 'chooseSwitch') {
             if (e.key.toLowerCase() === 'y') {
@@ -265,10 +382,19 @@
         }
     });
 
-    modeBtn.addEventListener('click', () => {
-        isGodMode = !isGodMode;
-        modeBtn.textContent = isGodMode ? '切换到游戏模式' : '切换到上帝模式';
+    // On-screen switch buttons (for mobile)
+    if (switchYes) switchYes.addEventListener('click', () => { if (step === 'chooseSwitch') chooseSwitch(true); });
+    if (switchNo) switchNo.addEventListener('click', () => { if (step === 'chooseSwitch') chooseSwitch(false); });
+
+    // mode & door count selectors
+    modeSelect.addEventListener('change', () => {
+        isGodMode = (modeSelect.value === 'god');
         updateStats();
+    });
+    doorCountSelect.addEventListener('change', () => {
+        doorCount = parseInt(doorCountSelect.value) || 3;
+        renderDoors();
+        initGame();
     });
 
     rulesBtn.addEventListener('click', () => rulesModal.style.display = 'block');
@@ -288,7 +414,8 @@
         initGame();
     });
 
-    // 开始游戏
+    // 初始渲染并开始游戏
+    renderDoors();
     initGame();
 </script>
 
